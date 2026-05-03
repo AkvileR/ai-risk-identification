@@ -1,0 +1,44 @@
+# --- Workspace / IDEs ---
+# Ignore the workspace file because it contains local paths
+*.code-workspace
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# --- Python / Backend (Server) ---
+**/__pycache__/
+**/*.py[cod]
+**/*$py.class
+**/.venv/
+**/venv/
+**/ENV/
+**/.env
+**/.pytest_cache/
+**/.langgraph_api/
+
+# --- Node / Frontend (Client) ---
+# dependencies - covers root and client folder
+**/node_modules/
+**/.pnp
+**/.pnp.js
+
+# testing
+**/coverage/
+
+# production / build
+**/build/
+**/dist/
+
+# --- Logs & Misc ---
+**/*.log*
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.DS_Store
+Thumbs.db
+
+# --- Environment Secrets ---
+# We ignore all local env files to keep your Gemini keys safe
+.env*
+!.env.example
