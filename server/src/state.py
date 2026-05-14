@@ -9,6 +9,10 @@ class SystemDescription(TypedDict):
     in_eu_scope: bool
     exclusions: list[ExclusionType]
 
+class ClarificationExchange(TypedDict):
+    question: str
+    answer: str
+
 class CriterionFinding(TypedDict):
     criterion_id: str
     article_ref: str
@@ -16,7 +20,7 @@ class CriterionFinding(TypedDict):
     applies: Literal["yes", "no", "uncertain"]
     confidence_score: float
     reasoning: str
-    clarification_question: Optional[str]
+    clarification_history: list[ClarificationExchange]
     clarification_round_count: int
     extracted_value: Optional[dict]
 

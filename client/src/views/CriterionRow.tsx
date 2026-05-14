@@ -28,7 +28,6 @@ export function CriterionRow({ finding }: Props) {
         <span className="criterion-status">{status}</span>
       </summary>
       <div className="criterion-body">
-        <p className="criterion-full-question">{finding.question}</p>
         <p className="criterion-reasoning">{finding.reasoning}</p>
         <div className="criterion-meta">
           <span>confidence {confidencePct}%</span>

@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useStream } from "@langchain/langgraph-sdk/react";
 import "./App.css";
 import { API_URL, ASSISTANT_ID } from "./api/graphClient";
@@ -19,9 +19,21 @@ function App() {
 
   const [userStopped, setUserStopped] = useState(false);
   const [submittedText, setSubmittedText] = useState<string | null>(null);
+  const [modalDismissed, setModalDismissed] = useState(false);
+  const [clarificationIndex, setClarificationIndex] = useState(0);
+  const [clarificationAnswers, setClarificationAnswers] = useState<
+    Record<string, string>
+  >({});
 
   const verdict = stream.values?.verdict;
   const interrupt = stream.interrupt;
+  const clarificationPayload =
+    interrupt && interrupt.value != null
+      ? (interrupt.value as ClarificationPayload)
+      : null;
+  const interruptKey = clarificationPayload
+    ? clarificationPayload.questions.map((q) => q.criterion_id).join("|")
+    : null;
   const findings = stream.values?.criterion_findings ?? {};
   const activePhase = stream.values?.active_phase ?? "";
   const systemDescription = stream.values?.system_description ?? null;
@@ -29,6 +41,14 @@ function App() {
     stream.isLoading ||
     Object.keys(findings).length > 0 ||
     !!systemDescription;
+
+  useEffect(() => {
+    if (interruptKey) {
+      setClarificationIndex(0);
+      setClarificationAnswers({});
+      setModalDismissed(false);
+    }
+  }, [interruptKey]);
 
   const phase: InputPhase = userStopped
     ? "stopped"
@@ -62,13 +82,22 @@ function App() {
   if (verdict) {
     return (
       <div className="app">
-        <VerdictView verdict={verdict} onReset={handleReset} />
+        <VerdictView
+          verdict={verdict}
+          findings={findings}
+          onReset={handleReset}
+        />
       </div>
     );
   }
 
   const showModal =
-    !!interrupt && interrupt.value != null && phase === "running";
+    !modalDismissed && !!clarificationPayload && phase === "running";
+
+  const onResumeClarification =
+    modalDismissed && clarificationPayload && phase === "running"
+      ? () => setModalDismissed(false)
+      : null;
 
   return (
     <div className="app">
@@ -87,6 +116,7 @@ function App() {
           systemDescription={systemDescription}
           isLoading={stream.isLoading}
           isWaitingForUser={!!interrupt}
+          onResumeClarification={onResumeClarification}
         />
       )}
 
@@ -94,9 +124,13 @@ function App() {
 
       {showModal && (
         <ClarificationModal
-          payload={interrupt!.value as ClarificationPayload}
+          payload={clarificationPayload!}
+          index={clarificationIndex}
+          answers={clarificationAnswers}
+          onIndexChange={setClarificationIndex}
+          onAnswersChange={setClarificationAnswers}
           onAnswer={handleClarification}
-          onClose={handleStop}
+          onClose={() => setModalDismissed(true)}
         />
       )}
     </div>

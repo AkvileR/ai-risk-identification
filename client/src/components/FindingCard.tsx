@@ -8,14 +8,14 @@ interface Props {
 export function FindingCard({ finding }: Props) {
   return (
     <div className="finding-card">
-      <div className="finding-header">
-        <span className="finding-article">[{finding.article_ref}]</span>
+      <p className="finding-question">{finding.question}</p>
+      <p className="finding-reasoning">{finding.reasoning}</p>
+      <div className="finding-footer">
         <span className="finding-confidence">
           confidence {Math.round(finding.confidence_score * 100)}%
         </span>
+        <span className="finding-criterion">{finding.criterion_id}</span>
       </div>
-      <div className="finding-criterion">{finding.criterion_id}</div>
-      <p className="finding-reasoning">{finding.reasoning}</p>
     </div>
   );
 }

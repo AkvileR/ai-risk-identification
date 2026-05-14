@@ -36,6 +36,13 @@ export interface SystemDescription {
   exclusions: ExclusionType[];
 }
 
+export type AmbiguityType = "terminology" | "underspecified" | "scope";
+
+export interface ClarificationExchange {
+  question: string;
+  answer: string;
+}
+
 export interface CriterionFinding {
   criterion_id: string;
   article_ref: string;
@@ -43,7 +50,7 @@ export interface CriterionFinding {
   applies: Applies;
   confidence_score: number;
   reasoning: string;
-  clarification_question: string | null;
+  clarification_history: ClarificationExchange[];
   clarification_round_count: number;
   extracted_value: Record<string, unknown> | null;
 }
@@ -74,6 +81,7 @@ export interface AppState extends Record<string, unknown> {
 export interface ClarificationQuestion {
   criterion_id: string;
   article_ref: string;
+  ambiguity_type: AmbiguityType;
   question: string;
 }
 

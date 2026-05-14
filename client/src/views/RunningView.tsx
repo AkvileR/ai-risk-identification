@@ -15,6 +15,7 @@ interface Props {
   systemDescription: SystemDescription | null;
   isLoading: boolean;
   isWaitingForUser: boolean;
+  onResumeClarification: (() => void) | null;
 }
 
 function phaseLabel(activePhase: string): string {
@@ -28,6 +29,7 @@ export function RunningView({
   systemDescription,
   isLoading,
   isWaitingForUser,
+  onResumeClarification,
 }: Props) {
   const evaluated = Object.keys(findings).length;
   const groups = groupByArticle(findings);
@@ -46,6 +48,15 @@ export function RunningView({
       <div className="running-status">
         {isLoading && !isWaitingForUser && <span className="spinner" />}
         <span className="running-status-text">{statusLabel}</span>
+        {onResumeClarification && (
+          <button
+            type="button"
+            className="resume-clarification"
+            onClick={onResumeClarification}
+          >
+            Resume clarification
+          </button>
+        )}
       </div>
 
       {systemDescription && (

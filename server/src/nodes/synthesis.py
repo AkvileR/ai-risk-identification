@@ -59,11 +59,23 @@ def synthesis(state: State):
         )
     else:
         triggering_articles = sorted({f["article_ref"] for f in triggering_findings})
-        tier_reasoning = (
-            f"You were assigned {tier} risk because the following articles "
-            f"were determined to be applicable: {', '.join(triggering_articles)}. "
-            f"See the applicable findings section for the specific criteria."
-        ) if triggering_articles else "No criteria applied to your system, thus the risk level was determined to be low."
+        if triggering_articles:
+            tier_reasoning = (
+                f"You were assigned {tier} risk because the following articles "
+                f"were determined to be applicable: {', '.join(triggering_articles)}. "
+                f"See the applicable findings section for the specific criteria."
+            )
+        else:
+            applied_non_tier = sorted({f["article_ref"] for f in applicable})
+            if applied_non_tier:
+                tier_reasoning = (
+                    f"No tier-driving criteria (Annex I, Annex III, Art. 50, Art. 51) "
+                    f"applied to your system. The following non-tier criteria did apply "
+                    f"but do not on their own change the risk level: "
+                    f"{', '.join(applied_non_tier)}. Your risk level is therefore low."
+                )
+            else:
+                tier_reasoning = "Based on your input, no criteria applied to your system, thus the risk level was determined to be low."
 
     if derived_role != detected_role:
         role_note = (

@@ -237,28 +237,28 @@ CRITERIA: list[AssessmentCriterion] = [
         "applies_to_roles": {Role.PROVIDER},
     },
     {
-        # S1
+        # S2
         "id": "art2_provider_places_gpai_eu",
         "article_ref": "Art. 2",
         "question": "Are you placing on the market General Purpose AI models in the EU?",
         "applies_to_roles": {Role.PROVIDER},
     },
     {
-        # S1
+        # S3
         "id": "art2_deployer_established_eu",
         "article_ref": "Art. 2",
         "question": "Are you established or located within the EU?",
         "applies_to_roles": {Role.DEPLOYER},
     },
     {
-        # S1
+        # S4
         "id": "art2_importer_third_country_trademark",
         "article_ref": "Art. 2",
         "question": "Are you established or located within the EU and placing on the market an AI system that bears the name or trademark of somebody established outside of the EU?",
         "applies_to_roles": {Role.IMPORTER},
     },
     {
-        # S1
+        # S5
         "id": "art2_output_used_in_eu",
         "article_ref": "Art. 2",
         "question": "Is your AI system's output used in the EU?",

@@ -14,6 +14,7 @@ from .constants import (
     APPLIES_MARKER,
     ART2_EXCLUSION_TYPES,
     ASSESSMENT_TEMPERATURE,
+    AmbiguityType,
     BOOL_TOKENS,
     EXCLUSION_MARKERS,
     ExclusionType,
@@ -33,7 +34,6 @@ from .constants import (
 class EntityTypeResponse(BaseModel):
     role: Literal["P", "D", "S", "I", "M", "R"]
     reasoning: str
-    clarification_question: Optional[str] = None
 
 class ExclusionsResponse(BaseModel):
     military: Literal["Y", "N"]
@@ -42,12 +42,25 @@ class ExclusionsResponse(BaseModel):
     open_source: Literal["Y", "N"]
     personal: Literal["Y", "N"]
     reasoning: str
-    clarification_question: Optional[str] = None
 
 class CriterionAssessmentResponse(BaseModel):
     applies: Literal["Y", "N", "U"]
     reasoning: str
-    clarification_question: Optional[str] = None
+
+class AmbiguityClassification(BaseModel):
+    criterion_id: str
+    ambiguity_type: AmbiguityType
+    reasoning: str
+
+class BatchAmbiguityResponse(BaseModel):
+    classifications: list[AmbiguityClassification]
+
+class GeneratedClarification(BaseModel):
+    criterion_id: str
+    question: str
+
+class BatchClarificationGeneration(BaseModel):
+    clarifications: list[GeneratedClarification]
 
 load_dotenv()
 
@@ -191,6 +204,54 @@ def query_gemini_for_role(
         if softmax is not None:
             return parsed, softmax
     return parsed, None
+
+@_retry_on_resource_exhausted
+def query_gemini_for_ambiguity_batch(prompt: str) -> BatchAmbiguityResponse:
+    for attempt in range(LOGPROB_RETRY_LIMIT + 1):
+        try:
+            response = client.models.generate_content(
+                model=GEMINI_MODEL,
+                contents=prompt,
+                config={
+                    "response_mime_type": "application/json",
+                    "response_schema": BatchAmbiguityResponse,
+                    "temperature": ASSESSMENT_TEMPERATURE,
+                },
+            )
+        except Exception as e:
+            _maybe_raise_resource_exhausted(e)
+            raise
+        try:
+            return BatchAmbiguityResponse.model_validate_json(response.text)
+        except ValidationError:
+            if attempt == LOGPROB_RETRY_LIMIT:
+                raise
+            continue
+    raise RuntimeError("query_gemini_for_ambiguity_batch exhausted retries")
+
+@_retry_on_resource_exhausted
+def query_gemini_for_clarification_generation(prompt: str) -> BatchClarificationGeneration:
+    for attempt in range(LOGPROB_RETRY_LIMIT + 1):
+        try:
+            response = client.models.generate_content(
+                model=GEMINI_MODEL,
+                contents=prompt,
+                config={
+                    "response_mime_type": "application/json",
+                    "response_schema": BatchClarificationGeneration,
+                    "temperature": ASSESSMENT_TEMPERATURE,
+                },
+            )
+        except Exception as e:
+            _maybe_raise_resource_exhausted(e)
+            raise
+        try:
+            return BatchClarificationGeneration.model_validate_json(response.text)
+        except ValidationError:
+            if attempt == LOGPROB_RETRY_LIMIT:
+                raise
+            continue
+    raise RuntimeError("query_gemini_for_clarification_generation exhausted retries")
 
 @_retry_on_resource_exhausted
 def query_gemini_for_exclusions(

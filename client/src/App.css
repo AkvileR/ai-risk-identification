@@ -145,6 +145,21 @@ body,
   flex: 1;
 }
 
+.resume-clarification {
+  padding: 6px 14px;
+  border: none;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  color: white;
+  background: #2563eb;
+}
+
+.resume-clarification:hover {
+  background: #1d4ed8;
+}
+
 .spinner {
   width: 14px;
   height: 14px;
@@ -221,7 +236,7 @@ body,
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 10px 12px;
+  padding: 10px 16px;
   cursor: pointer;
   list-style: none;
   font-size: 14px;
@@ -361,13 +376,6 @@ body,
   background: #f9fafb;
   border-radius: 4px;
   margin: 0 0 4px;
-}
-
-.criterion-full-question {
-  margin: 0 0 8px;
-  font-size: 13px;
-  color: #374151;
-  font-style: italic;
 }
 
 .criterion-reasoning {
@@ -590,7 +598,7 @@ body,
 
 .verdict-section summary {
   font-size: 16px;
-  font-weight: 600;
+  font-weight: 700;
   color: #374151;
   cursor: pointer;
   padding: 4px 0;
@@ -726,6 +734,64 @@ body,
 
 /* FindingCard */
 
+.finding-groups {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.finding-group {
+  border: 1px solid transparent;
+}
+
+.verdict-section .finding-group-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 8px;
+  padding: 4px 0;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #6b7280;
+  cursor: pointer;
+  list-style: none;
+  user-select: none;
+}
+
+.verdict-section .finding-group-header:hover {
+  color: #4b5563;
+}
+
+.verdict-section details[open] .finding-group-header {
+  margin-bottom: 8px;
+}
+
+.finding-group-header::-webkit-details-marker {
+  display: none;
+}
+
+.finding-group-header::before {
+  content: "▸";
+  display: inline-block;
+  font-size: 11px;
+  color: #9ca3af;
+  transition: transform 0.15s ease;
+}
+
+.finding-group[open] > .finding-group-header::before {
+  transform: rotate(90deg);
+}
+
+.finding-group-count {
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0;
+  text-transform: none;
+  color: #9ca3af;
+}
+
 .finding-grid {
   display: grid;
   gap: 12px;
@@ -738,16 +804,95 @@ body,
   background: #fafbfd;
 }
 
-.finding-header {
-  display: flex;
-  justify-content: space-between;
-  font-size: 13px;
-  margin-bottom: 4px;
+/* ScopeCard */
+
+.scope-grid {
+  display: grid;
+  gap: 8px;
 }
 
-.finding-article {
+.scope-card {
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  background: #fafbfd;
+}
+
+.verdict-section .scope-summary {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 14px;
+  cursor: pointer;
+  list-style: none;
+  font-size: inherit;
+  font-weight: normal;
+  color: inherit;
+}
+
+.scope-summary::-webkit-details-marker {
+  display: none;
+}
+
+.scope-question {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  font-size: 13px;
+  font-style: italic;
+  color: #4b5563;
+  line-height: 1.45;
+}
+
+.scope-question::before {
+  content: "▸";
+  font-style: normal;
+  font-size: 11px;
+  color: #9ca3af;
+  transition: transform 0.15s ease;
+  flex-shrink: 0;
+}
+
+.scope-card[open] > .scope-summary .scope-question::before {
+  transform: rotate(90deg);
+}
+
+.scope-answer {
+  font-size: 14px;
   font-weight: 600;
-  color: #2563eb;
+  color: #111827;
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+.scope-body {
+  padding: 0 14px 12px;
+}
+
+.scope-body .finding-reasoning {
+  margin: 0 0 10px;
+}
+
+.finding-question {
+  margin: 0 0 8px;
+  font-size: 13px;
+  font-style: italic;
+  line-height: 1.45;
+  color: #4b5563;
+}
+
+.finding-reasoning {
+  margin: 0 0 10px;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.finding-footer {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 12px;
+  color: #6b7280;
 }
 
 .finding-confidence {
@@ -755,15 +900,6 @@ body,
 }
 
 .finding-criterion {
-  font-size: 12px;
-  color: #6b7280;
-  margin-bottom: 6px;
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-}
-
-.finding-reasoning {
-  margin: 0;
-  font-size: 14px;
-  line-height: 1.5;
 }
 

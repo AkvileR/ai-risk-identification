@@ -4,13 +4,14 @@ from src.constants import (
     ART2_PROVIDER_SCOPE_IDS,
     ART2_SCOPE_CRITERION_IDS,
     CRITERION_MAX_CONCURRENCY,
+    GATE_CRITERION_IDS,
     GPAI_FLAG_CRITERION_ID,
     IDENTIFICATION_CRITERION_IDS,
     ActivePhase,
     AssessmentCriterion,
     Role,
 )
-from src.criteria import CRITERIA
+from src.criteria import CRITERIA, CRITERIA_BY_ID
 from src.state import CriterionFinding, State, SystemDescription
 from src.synthesis_utils import derive_role, is_role_changing_article
 
@@ -25,6 +26,7 @@ def _high_risk_pending_for_role(role: Role, sd: SystemDescription) -> set[str]:
         c["id"]
         for c in CRITERIA
         if c["id"] not in IDENTIFICATION_CRITERION_IDS
+        and c["id"] not in GATE_CRITERION_IDS
         and is_role_changing_article(c["article_ref"])
         and role in c["applies_to_roles"]
         and _is_relevant_to_system(c, sd)
@@ -39,10 +41,32 @@ def _remaining_pending(
         c["id"]
         for c in CRITERIA
         if c["id"] not in IDENTIFICATION_CRITERION_IDS
+        and c["id"] not in GATE_CRITERION_IDS
         and derived_role in c["applies_to_roles"]
         and c["id"] not in findings
         and _is_relevant_to_system(c, sd)
     }
+
+def _gate_pending_for_role(
+    role: Role,
+    findings: dict[str, CriterionFinding],
+) -> set[str]:
+    pending: set[str] = set()
+    if "art6_third_party_conformity_assessment_required" not in findings and any(
+        f.get("applies") == "yes" and f["article_ref"].startswith("Annex I §A")
+        for f in findings.values()
+    ):
+        criterion = CRITERIA_BY_ID["art6_third_party_conformity_assessment_required"]
+        if role in criterion["applies_to_roles"]:
+            pending.add("art6_third_party_conformity_assessment_required")
+    if "art6_significant_risk" not in findings and any(
+        f.get("applies") == "yes" and f["article_ref"].startswith("Annex III")
+        for f in findings.values()
+    ):
+        criterion = CRITERIA_BY_ID["art6_significant_risk"]
+        if role in criterion["applies_to_roles"]:
+            pending.add("art6_significant_risk")
+    return pending
 
 def _plan_product_manufacturer(
     sd: SystemDescription,
@@ -65,10 +89,17 @@ def _plan_product_manufacturer(
     if unevaluated:
         return {"pending_assessments": unevaluated}
 
+    gate_pending = _gate_pending_for_role(Role.PRODUCT_MANUFACTURER, findings)
+    if gate_pending:
+        return {"pending_assessments": gate_pending}
+
     derived = derive_role(Role.PRODUCT_MANUFACTURER, findings)
     if derived != Role.PROVIDER:
         return {"pending_assessments": set()}
-    return {"pending_assessments": _remaining_pending(Role.PROVIDER, sd, findings)}
+    remaining = _remaining_pending(Role.PROVIDER, sd, findings)
+    if remaining:
+        return {"pending_assessments": remaining}
+    return {"pending_assessments": _gate_pending_for_role(Role.PROVIDER, findings)}
 
 def _plan_for_any(
     role: Role,
@@ -79,14 +110,23 @@ def _plan_for_any(
     unevaluated = high_risk - set(findings.keys())
     if unevaluated:
         return {"pending_assessments": unevaluated}
+    gate_pending = _gate_pending_for_role(role, findings)
+    if gate_pending:
+        return {"pending_assessments": gate_pending}
     derived = derive_role(role, findings)
-    return {"pending_assessments": _remaining_pending(derived, sd, findings)}
+    remaining = _remaining_pending(derived, sd, findings)
+    if remaining:
+        return {"pending_assessments": remaining}
+    return {"pending_assessments": _gate_pending_for_role(derived, findings)}
 
 def _plan_provider(
     sd: SystemDescription,
     findings: dict[str, CriterionFinding],
 ) -> dict:
-    return {"pending_assessments": _remaining_pending(Role.PROVIDER, sd, findings)}
+    remaining = _remaining_pending(Role.PROVIDER, sd, findings)
+    if remaining:
+        return {"pending_assessments": remaining}
+    return {"pending_assessments": _gate_pending_for_role(Role.PROVIDER, findings)}
 
 def _build_sends(pending: set[str], sd: SystemDescription) -> list[Send]:
     return [

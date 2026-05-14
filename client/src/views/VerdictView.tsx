@@ -1,15 +1,80 @@
 import React from "react";
-import { Verdict, formatRole, formatExclusion } from "../types";
+import { Applies, CriterionFinding, Verdict, formatExclusion } from "../types";
+import { SYSTEM_SCOPE_CRITERION_IDS } from "../constants";
 import { TierBadge } from "../components/TierBadge";
 import { FindingCard } from "../components/FindingCard";
+import {
+  extractionStatusLabel,
+  groupByArticle,
+  isExtractionFinding,
+} from "./grouping";
+
+const SCOPE_ANSWER_LABEL: Record<Applies, string> = {
+  yes: "Yes",
+  no: "No",
+  uncertain: "Uncertain",
+};
 
 interface Props {
   verdict: Verdict;
+  findings: Record<string, CriterionFinding>;
   onReset: () => void;
 }
 
-export function VerdictView({ verdict, onReset }: Props) {
-  const roleEscalated = verdict.role !== verdict.detected_role;
+function toRecord(list: CriterionFinding[]): Record<string, CriterionFinding> {
+  const out: Record<string, CriterionFinding> = {};
+  for (const f of list) out[f.criterion_id] = f;
+  return out;
+}
+
+function ScopeCard({ finding }: { finding: CriterionFinding }) {
+  const answer = isExtractionFinding(finding)
+    ? extractionStatusLabel(finding)
+    : SCOPE_ANSWER_LABEL[finding.applies];
+  return (
+    <details className="scope-card">
+      <summary className="scope-summary">
+        <span className="scope-question">{finding.question}</span>
+        <span className="scope-answer">{answer}</span>
+      </summary>
+      <div className="scope-body">
+        <p className="finding-reasoning">{finding.reasoning}</p>
+        <div className="finding-footer">
+          <span className="finding-confidence">
+            confidence {Math.round(finding.confidence_score * 100)}%
+          </span>
+          <span className="finding-criterion">{finding.criterion_id}</span>
+        </div>
+      </div>
+    </details>
+  );
+}
+
+function ArticleGroupedFindings({ findings }: { findings: CriterionFinding[] }) {
+  const groups = groupByArticle(toRecord(findings));
+  return (
+    <div className="finding-groups">
+      {groups.map((g) => (
+        <details key={g.article_ref} className="finding-group">
+          <summary className="finding-group-header">
+            {g.article_ref}
+            <span className="finding-group-count">{g.findings.length}</span>
+          </summary>
+          <div className="finding-grid">
+            {g.findings.map((f) => (
+              <FindingCard key={f.criterion_id} finding={f} />
+            ))}
+          </div>
+        </details>
+      ))}
+    </div>
+  );
+}
+
+export function VerdictView({ verdict, findings, onReset }: Props) {
+  const scopeFindings = SYSTEM_SCOPE_CRITERION_IDS
+    .map((id) => findings[id])
+    .filter((f): f is CriterionFinding => f !== undefined);
 
   return (
     <div className="verdict-view">
@@ -37,16 +102,23 @@ export function VerdictView({ verdict, onReset }: Props) {
         <pre className="tier-reasoning">{verdict.tier_reasoning}</pre>
       </section>
 
+      {scopeFindings.length > 0 && (
+        <section className="verdict-section">
+          <h2>System scope</h2>
+          <div className="scope-grid">
+            {scopeFindings.map((f) => (
+              <ScopeCard key={f.criterion_id} finding={f} />
+            ))}
+          </div>
+        </section>
+      )}
+
       <section className="verdict-section">
         <h2>Applicable findings ({verdict.applicable_findings.length})</h2>
         {verdict.applicable_findings.length === 0 ? (
           <p>No criteria applied to this system.</p>
         ) : (
-          <div className="finding-grid">
-            {verdict.applicable_findings.map((f) => (
-              <FindingCard key={f.criterion_id} finding={f} />
-            ))}
-          </div>
+          <ArticleGroupedFindings findings={verdict.applicable_findings} />
         )}
       </section>
 
@@ -57,11 +129,7 @@ export function VerdictView({ verdict, onReset }: Props) {
               Uncertain ({verdict.uncertain_findings.length}) — model could
               not decide after clarification rounds
             </summary>
-            <div className="finding-grid">
-              {verdict.uncertain_findings.map((f) => (
-                <FindingCard key={f.criterion_id} finding={f} />
-              ))}
-            </div>
+            <ArticleGroupedFindings findings={verdict.uncertain_findings} />
           </details>
         </section>
       )}
@@ -73,27 +141,11 @@ export function VerdictView({ verdict, onReset }: Props) {
               Not applicable ({verdict.non_applicable_findings.length}) —
               criteria the model determined did not apply
             </summary>
-            <div className="finding-grid">
-              {verdict.non_applicable_findings.map((f) => (
-                <FindingCard key={f.criterion_id} finding={f} />
-              ))}
-            </div>
+            <ArticleGroupedFindings findings={verdict.non_applicable_findings} />
           </details>
         </section>
       )}
 
-      <section className="verdict-meta">
-        {roleEscalated ? (
-          <span>
-            Detected as {formatRole(verdict.detected_role)}; reclassified as{" "}
-            {formatRole(verdict.role)}
-          </span>
-        ) : (
-          <span>Role: {formatRole(verdict.role)}</span>
-        )}
-        <span>GPAI: {verdict.is_gpai ? "yes" : "no"}</span>
-        {verdict.is_gpai_systemic && <span>Systemic risk: yes</span>}
-      </section>
     </div>
   );
 }

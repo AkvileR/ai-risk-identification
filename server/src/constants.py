@@ -1,7 +1,7 @@
 from typing import Final, TypedDict
 from enum import StrEnum
 
-ASSESSMENT_CONFIDENCE_THRESHOLD: Final = 0.75
+ASSESSMENT_CONFIDENCE_THRESHOLD: Final = 0.85
 
 RAG_ENABLED: Final = False
 
@@ -9,7 +9,7 @@ GEMINI_MODEL: Final = "gemini-2.5-flash"
 ASSESSMENT_TEMPERATURE: Final = 0.0
 MAX_CLARIFICATION_ROUNDS: Final = 2
 LOGPROB_RETRY_LIMIT: Final = 3
-LOGPROB_TEMPERATURE: Final = 2.5
+LOGPROB_TEMPERATURE: Final = 4.5
 LOGPROB_TOP_K: Final = 5
 MAX_VALUE_TOKEN_WINDOW: Final = 5
 ANSWER_TOKENS: Final[frozenset[str]] = frozenset({"Y", "N", "U"})
@@ -70,6 +70,11 @@ class ExclusionType(StrEnum):
     PERSONAL = "personal"
     HIGH_RISK_EXCEPTION = "high_risk_exception"
 
+class AmbiguityType(StrEnum):
+    TERMINOLOGY = "terminology"
+    UNDERSPECIFIED = "underspecified"
+    SCOPE = "scope"
+
 ART2_EXCLUSION_TYPES: Final[tuple[ExclusionType, ...]] = (
     ExclusionType.MILITARY,
     ExclusionType.THIRD_COUNTRY_LE,
@@ -114,6 +119,11 @@ IDENTIFICATION_CRITERION_IDS: Final[set[str]] = {
     "art2_exclusions",
 }
 
+GATE_CRITERION_IDS: Final[set[str]] = {
+    "art6_significant_risk",
+    "art6_third_party_conformity_assessment_required",
+}
+
 class AssessmentCriterion(TypedDict):
     id: str
     article_ref: str
@@ -137,9 +147,11 @@ Answer the applies field with a single letter:
 Your reasoning must quote inline only from the SYSTEM DESCRIPTION{rag_clause} --
 do not cite anything outside this context.
 
-VOICE: Write all reasoning and clarification questions in second person,
-addressing the user directly. Use "you", "your system", "your role" --
-never "the user", "their system", or "the described system".
+VOICE: Write reasoning in second person, addressing the user directly.
+Use "you", "your system", "your role" -- never "the user", "their system",
+or "the described system". When quoting a prior clarification, quote only
+the user's answer text -- do not include the "Q:" or "A:" labels that
+structure the input.
 
 CRITERION:
   id:           {criterion_id}
@@ -152,9 +164,7 @@ SYSTEM DESCRIPTION:
   is GPAI:      {is_gpai}
   prior clarifications: {prior_clarifications}
 
-OUTPUT JSON matching the CriterionAssessmentResponse schema. If applies="U",
-set clarification_question to a single targeted follow-up addressed to the user
-in second person."""
+OUTPUT JSON matching the CriterionAssessmentResponse schema."""
 
 IDENTIFY_SYSTEM_PROMPT_TEMPLATE: Final = """SYSTEM: You are an EU AI Act compliance analyst. The DESCRIPTION below
 was written by the user about their own AI system. Answer the CRITERION
@@ -162,9 +172,11 @@ below by extracting the literal value the schema expects. Your reasoning
 must quote inline only from the DESCRIPTION{rag_clause} -- do not cite
 anything outside this context.
 
-VOICE: Write reasoning and clarification_question in second person,
-addressing the user directly. Use "you", "your system", "your role" --
-never "the user", "their system", or "the described system".
+VOICE: Write reasoning in second person, addressing the user directly.
+Use "you", "your system", "your role" -- never "the user", "their system",
+or "the described system". When quoting a prior clarification, quote only
+the user's answer text -- do not include the "Q:" or "A:" labels that
+structure the input.
 
 CRITERION:
   id:           {criterion_id}
@@ -174,8 +186,86 @@ CRITERION:
 DESCRIPTION: {description}
 {context_block}prior clarifications: {prior_clarifications}
 
-OUTPUT JSON matching the {schema_name} schema. {schema_legend} If the answer
-is ambiguous from the DESCRIPTION, set clarification_question to a single
-targeted follow-up addressed to the user in second person; otherwise leave
-it null."""
+OUTPUT JSON matching the {schema_name} schema. {schema_legend}"""
+
+AT_DEFINITIONS: Final = """- terminology: The description uses a term whose legal or technical interpretation determines the answer. The user must clarify which meaning they intended.
+- underspecified: The behavior or attribute the criterion asks about is not addressed by the description. The user must supply the missing fact.
+- scope: The description mentions a related but possibly out-of-scope activity. The user must confirm whether the criterion's behavior is part of their system."""
+
+AT_CLARIFICATION_ACTIONS: Final[dict[AmbiguityType, str]] = {
+    AmbiguityType.TERMINOLOGY: (
+        "Quote the specific phrase from the DESCRIPTION whose interpretation drives the answer. "
+        "Using only the RELEVANT AI ACT TEXT for this criterion, enumerate the distinct "
+        "interpretations the Act distinguishes for that phrase as labelled options. "
+        "Ask which one matches the user's system. Do not invent options that are not in the "
+        "Act text; if the Act text does not enumerate options, ask which intended meaning applies."
+    ),
+    AmbiguityType.UNDERSPECIFIED: (
+        "Identify the specific fact the criterion requires that the DESCRIPTION does not "
+        "address. Ask for that fact directly, in plain language. If the RELEVANT AI ACT TEXT "
+        "enumerates options for that fact (roles, risk tiers, exclusion categories), present "
+        "them as labelled options; otherwise ask an open question."
+    ),
+    AmbiguityType.SCOPE: (
+        "Quote the adjacent activity the user mentioned in the DESCRIPTION. Using the RELEVANT "
+        "AI ACT TEXT, state the criterion's specific in-scope behaviour in one short clause, "
+        "then ask the user to confirm whether their system performs that in-scope behaviour or "
+        "only the adjacent activity they mentioned."
+    ),
+}
+
+AMBIGUITY_CLASSIFICATION_PROMPT_TEMPLATE: Final = """SYSTEM: You are an EU AI Act compliance analyst. The DESCRIPTION below
+was written by the user about their own AI system. An automated assessment
+flagged the CRITERIA listed below as uncertain. For each criterion,
+classify which AMBIGUITY TYPE best explains the gap between the
+description and a confident answer.
+
+AMBIGUITY TYPES:
+{at_definitions}
+
+For each criterion, briefly explain in 'reasoning' which AT applies and
+why, citing inline only from the DESCRIPTION or the prior assessment
+reasoning -- do not cite anything outside this context. Then assign
+exactly one ambiguity_type from the list above. Preserve criterion_id
+values exactly.
+
+DESCRIPTION: {description}
+
+UNCERTAIN CRITERIA:
+{criteria_block}
+
+OUTPUT JSON matching the BatchAmbiguityResponse schema, with one
+classification per criterion in the same order."""
+
+CLARIFICATION_GENERATION_PROMPT_TEMPLATE: Final = """SYSTEM: You are an EU AI Act compliance analyst. The DESCRIPTION below
+was written by the user about their own AI system. An automated assessment
+flagged each CRITERION below as uncertain and classified the type of
+ambiguity. For each criterion, generate exactly one clarifying question
+the user can answer to resolve that ambiguity.
+
+For each criterion, follow the ACTION specified in its block. The action
+tells you how to construct the question for that criterion's ambiguity
+type.
+
+VOICE: Write each question in second person, addressing the user directly.
+Use "you", "your system", "your role" -- never "the user", "their system",
+or "the described system". Quote inline only from the DESCRIPTION or that
+criterion's RELEVANT AI ACT TEXT -- do not cite anything outside this
+context. Do not invent legal options or definitions that are not in the
+provided Act text. Each question must be self-contained: the user should
+be able to answer it without first reading the criterion's article.
+
+If a criterion already has PRIOR CLARIFICATIONS, your new question must
+target a different gap than the prior exchanges; do not repeat what was
+already asked.
+
+DESCRIPTION: {description}
+
+UNCERTAIN CRITERIA:
+{criteria_block}
+
+OUTPUT JSON matching the BatchClarificationGeneration schema, with one
+clarification per criterion in the same order. Preserve criterion_id
+values exactly. The 'question' field must contain only the user-facing
+question text -- no preamble, no labels, no JSON-internal commentary."""
 

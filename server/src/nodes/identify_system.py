@@ -25,20 +25,8 @@ from src.constants import (
     Role,
 )
 from src.criteria import CRITERIA_BY_ID
-from src.rag import retrieve_for_criterion
+from src.rag import format_chunks_block, retrieve_for_criterion
 from src.state import CriterionFinding, State, SystemDescription
-
-def _format_chunks(chunks) -> str:
-    if not chunks:
-        return ""
-    lines = ["", "RELEVANT AI ACT TEXT (retrieved):"]
-    for c in chunks:
-        heading = c["article_ref"]
-        if c.get("title"):
-            heading = f"{heading} -- {c['title']}"
-        lines.append(f"  [{heading}]")
-        lines.append(f"  {c['text']}")
-    return "\n".join(lines) + "\n"
 
 def _context_block(cid: str, sibling_findings: dict[str, CriterionFinding]) -> str:
     parts = []
@@ -72,7 +60,7 @@ def _build_prompt(
     schema_legend: str,
 ) -> str:
     chunks = retrieve_for_criterion(criterion) if RAG_ENABLED else []
-    rag_block = _format_chunks(chunks)
+    rag_block = format_chunks_block(chunks)
     rag_clause = " or RELEVANT AI ACT TEXT" if rag_block else ""
     return IDENTIFY_SYSTEM_PROMPT_TEMPLATE.format(
         rag_clause=rag_clause,
@@ -87,25 +75,27 @@ def _build_prompt(
         schema_legend=schema_legend,
     )
 
-def _evaluate_role(prompt: str) -> tuple[str, float, str, Optional[str], dict]:
+def _evaluate_role(prompt: str) -> tuple[str, float, str, dict]:
     parsed, softmax = query_gemini_for_role(prompt)
     role = LETTER_TO_ROLE[parsed.role]
     confidence = softmax[parsed.role] if softmax is not None else 0.0
-    return "yes", confidence, parsed.reasoning, parsed.clarification_question, {"role": role}
+    applies = "yes" if confidence >= ASSESSMENT_CONFIDENCE_THRESHOLD else "uncertain"
+    return applies, confidence, parsed.reasoning, {"role": role}
 
-def _evaluate_exclusions(prompt: str) -> tuple[str, float, str, Optional[str], dict]:
+def _evaluate_exclusions(prompt: str) -> tuple[str, float, str, dict]:
     parsed, softmax_per = query_gemini_for_exclusions(prompt)
     exclusions: list[ExclusionType] = [
         e for e in ART2_EXCLUSION_TYPES if getattr(parsed, e.value) == "Y"
     ]
     if softmax_per is None:
-        return "yes", 0.0, parsed.reasoning, parsed.clarification_question, {"exclusions": exclusions}
+        return "uncertain", 0.0, parsed.reasoning, {"exclusions": exclusions}
     confidence = min(
         softmax_per[e][getattr(parsed, e.value)] for e in ART2_EXCLUSION_TYPES
     )
-    return "yes", confidence, parsed.reasoning, parsed.clarification_question, {"exclusions": exclusions}
+    applies = "yes" if confidence >= ASSESSMENT_CONFIDENCE_THRESHOLD else "uncertain"
+    return applies, confidence, parsed.reasoning, {"exclusions": exclusions}
 
-def _evaluate_s1(prompt: str) -> tuple[str, float, str, Optional[str], dict]:
+def _evaluate_s1(prompt: str) -> tuple[str, float, str, dict]:
     parsed, softmax = query_gemini_for_assessment(prompt)
     if softmax is None:
         applies = "uncertain"
@@ -115,7 +105,7 @@ def _evaluate_s1(prompt: str) -> tuple[str, float, str, Optional[str], dict]:
         confidence = softmax[parsed.applies]
         if confidence < ASSESSMENT_CONFIDENCE_THRESHOLD:
             applies = "uncertain"
-    return applies, confidence, parsed.reasoning, parsed.clarification_question, {"applies": applies}
+    return applies, confidence, parsed.reasoning, {"applies": applies}
 
 def _evaluate(
     cid: str,
@@ -124,7 +114,11 @@ def _evaluate(
     prior_finding: Optional[CriterionFinding],
 ) -> CriterionFinding:
     criterion = CRITERIA_BY_ID[cid]
-    prior_text = (prior_finding or {}).get("reasoning", "") if prior_finding else ""
+    history = (prior_finding or {}).get("clarification_history") or []
+    prior_text = "\n".join(
+        f"- Q: {e['question']}\n  A: {e['answer']}"
+        for e in history
+    )
 
     if cid == "art3_entity_role":
         schema_name, legend, evaluator = "EntityTypeResponse", ROLE_PROMPT_LEGEND, _evaluate_role
@@ -134,9 +128,7 @@ def _evaluate(
         schema_name, legend, evaluator = "CriterionAssessmentResponse", ASSESSMENT_PROMPT_LEGEND, _evaluate_s1
 
     prompt = _build_prompt(cid, criterion, user_input, prior_text, sibling_findings, schema_name, legend)
-    applies, confidence, reasoning, clarification_question, extracted_value = evaluator(prompt)
-    if confidence < ASSESSMENT_CONFIDENCE_THRESHOLD and clarification_question is None:
-        clarification_question = f"Could you confirm: {criterion['question']}"
+    applies, confidence, reasoning, extracted_value = evaluator(prompt)
     prior_rounds = (prior_finding or {}).get("clarification_round_count", 0)
     return {
         "criterion_id": cid,
@@ -145,7 +137,7 @@ def _evaluate(
         "applies": applies,
         "confidence_score": confidence,
         "reasoning": reasoning,
-        "clarification_question": clarification_question,
+        "clarification_history": history,
         "clarification_round_count": prior_rounds,
         "extracted_value": extracted_value,
     }
@@ -213,7 +205,7 @@ def _build_wave_sends(
     findings: dict[str, CriterionFinding],
 ) -> list[Send]:
     return [
-        Send("identify_system", {
+        Send("criterion_assess", {
             "criterion_id": cid,
             "user_input": user_input,
             "sibling_findings": _sibling_context_for(cid, findings),
@@ -222,17 +214,7 @@ def _build_wave_sends(
         for cid in pending
     ]
 
-def _eval_one(payload: dict):
-    cid: str = payload["criterion_id"]
-    user_input: str = payload.get("user_input", "")
-    siblings: dict[str, CriterionFinding] = payload.get("sibling_findings") or {}
-    prior: Optional[CriterionFinding] = payload.get("prior_finding")
-    finding = _evaluate(cid, user_input, siblings, prior)
-    return {
-        "criterion_findings": {cid: finding},
-    }
-
-def _plan_next_wave(state: State):
+def identify_planner(state: State):
     findings = state.get("criterion_findings") or {}
     user_input = state.get("user_input", "")
     _, pending = _next_wave_pending(findings)
@@ -242,9 +224,8 @@ def _plan_next_wave(state: State):
             goto=_build_wave_sends(pending, user_input, findings),
         )
     sd = _compose_system_description(user_input, findings)
-    return {"system_description": sd, "active_phase": ActivePhase.DEFINING_SYSTEM}
+    return Command(
+        update={"system_description": sd, "active_phase": ActivePhase.DEFINING_SYSTEM},
+        goto="assessment_planner",
+    )
 
-def identify_system(input_: dict):
-    if "criterion_id" in input_:
-        return _eval_one(input_)
-    return _plan_next_wave(input_)

@@ -25,6 +25,16 @@ export const STATUS_LABEL: Record<Applies, string> = {
   uncertain: "Uncertain",
 };
 
+export const SYSTEM_SCOPE_CRITERION_IDS: string[] = [
+  "art3_entity_role",
+  "art2_provider_places_ai_eu",
+  "art2_provider_places_gpai_eu",
+  "art2_deployer_established_eu",
+  "art2_importer_third_country_trademark",
+  "art2_output_used_in_eu",
+  "art2_exclusions",
+];
+
 export const ARTICLE_ORDER: string[] = [
   "Art. 3",
   "Art. 2",

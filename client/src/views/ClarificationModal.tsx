@@ -1,34 +1,44 @@
-import React, { useState } from "react";
+import React from "react";
 import { ClarificationPayload } from "../types";
 import { MAX_CLARIFICATION_CHARS } from "../constants";
 
 interface Props {
   payload: ClarificationPayload;
+  index: number;
+  answers: Record<string, string>;
+  onIndexChange: (next: number) => void;
+  onAnswersChange: (next: Record<string, string>) => void;
   onAnswer: (answers: Record<string, string>) => void;
   onClose: () => void;
 }
 
-export function ClarificationModal({ payload, onAnswer, onClose }: Props) {
+export function ClarificationModal({
+  payload,
+  index,
+  answers,
+  onIndexChange,
+  onAnswersChange,
+  onAnswer,
+  onClose,
+}: Props) {
   const questions = payload.questions;
   const total = questions.length;
 
-  const [index, setIndex] = useState(0);
-  const [answers, setAnswers] = useState<Record<string, string>>({});
-
-  const current = questions[index];
+  const safeIndex = Math.min(Math.max(index, 0), total - 1);
+  const current = questions[safeIndex];
   const currentAnswer = answers[current.criterion_id] ?? "";
-  const isLast = index === total - 1;
+  const isLast = safeIndex === total - 1;
   const trimmed = currentAnswer.trim();
 
   const handleNext = (e: React.FormEvent) => {
     e.preventDefault();
     if (!trimmed) return;
     const nextAnswers = { ...answers, [current.criterion_id]: trimmed };
-    setAnswers(nextAnswers);
+    onAnswersChange(nextAnswers);
     if (isLast) {
       onAnswer(nextAnswers);
     } else {
-      setIndex(index + 1);
+      onIndexChange(safeIndex + 1);
     }
   };
 
@@ -39,12 +49,12 @@ export function ClarificationModal({ payload, onAnswer, onClose }: Props) {
           className="modal-close"
           type="button"
           onClick={onClose}
-          aria-label="Stop assessment"
+          aria-label="Close"
         >
           ×
         </button>
         <h2>
-          Need clarification ({index + 1} of {total})
+          Need clarification ({safeIndex + 1} of {total})
         </h2>
         <div className="modal-question-meta">
           <span className="modal-question-article">[{current.article_ref}]</span>
@@ -57,7 +67,10 @@ export function ClarificationModal({ payload, onAnswer, onClose }: Props) {
             className="modal-textarea"
             value={currentAnswer}
             onChange={(e) =>
-              setAnswers({ ...answers, [current.criterion_id]: e.target.value })
+              onAnswersChange({
+                ...answers,
+                [current.criterion_id]: e.target.value,
+              })
             }
             rows={4}
             autoFocus
@@ -81,7 +94,7 @@ export function ClarificationModal({ payload, onAnswer, onClose }: Props) {
           {questions.map((q, i) => (
             <span
               key={q.criterion_id}
-              className={i === index ? "dot dot-active" : "dot"}
+              className={i === safeIndex ? "dot dot-active" : "dot"}
             />
           ))}
         </div>
