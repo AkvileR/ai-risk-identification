@@ -1,38 +1,35 @@
-from typing import TypedDict, Literal
 from langgraph.graph import StateGraph, START, END
-
-from src.state import State 
-from src.constants import CONFIDENCE_THRESHOLD
+from src.constants import CRITERION_MAX_CONCURRENCY
+from src.state import State
 from src import nodes
-
-def default_router(state: State):
-    current_id = state.get("active_node")
-    result = state["answers"].get(current_id)
-
-    if not result:
-        return "end"
-    if result["confidence_score"] < CONFIDENCE_THRESHOLD:
-        return "clarify"
-    return result["next_node"]
+from src.routers import assessment_router, identify_router
 
 workflow = StateGraph(State)
 
+workflow.add_node("identify_system", nodes.identify_system)
 workflow.add_node("clarification", nodes.clarification)
+workflow.add_node("assessment_planner", nodes.assessment_planner)
+workflow.add_node("criterion_assess", nodes.criterion_assess)
+workflow.add_node("synthesis", nodes.synthesis)
 
-workflow.add_edge(START, "clarification")
-workflow.add_edge("clarification", END)
-
-"""
-Outdated, but left as example, wire up after node definition
-
+workflow.add_edge(START, "identify_system")
 workflow.add_conditional_edges(
-    "gemini_analyzer",
-    default_router,
+    "identify_system",
+    identify_router,
     {
-        "low_confidence_path": "low_confidence_path",
-        "__end__": END
-    }
+        "clarification": "clarification",
+        "identify_system": "identify_system",
+        "assessment_planner": "assessment_planner",
+    },
 )
-"""
+workflow.add_conditional_edges(
+    "criterion_assess",
+    assessment_router,
+    {
+        "clarification": "clarification",
+        "assessment_planner": "assessment_planner",
+    },
+)
+workflow.add_edge("synthesis", END)
 
-graph = workflow.compile()
+graph = workflow.compile().with_config({"max_concurrency": CRITERION_MAX_CONCURRENCY})

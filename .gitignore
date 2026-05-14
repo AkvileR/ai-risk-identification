@@ -17,6 +17,9 @@
 **/.pytest_cache/
 **/.langgraph_api/
 
+# --- RAG cache ---
+server/src/rag/data/ai_act_index.npz
+
 # --- Node / Frontend (Client) ---
 # dependencies - covers root and client folder
 **/node_modules/
