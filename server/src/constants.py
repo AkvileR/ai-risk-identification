@@ -3,7 +3,7 @@ from enum import StrEnum
 
 ASSESSMENT_CONFIDENCE_THRESHOLD: Final = 0.85
 
-RAG_ENABLED: Final = False
+RAG_ENABLED: Final = True
 
 GEMINI_MODEL: Final = "gemini-2.5-flash"
 ASSESSMENT_TEMPERATURE: Final = 0.0
@@ -17,10 +17,8 @@ APPLIES_MARKER: Final = '"applies":'
 LETTER_TO_VERDICT: Final[dict[str, str]] = {"Y": "yes", "N": "no", "U": "uncertain"}
 ROLE_TOKENS: Final[frozenset[str]] = frozenset({"P", "D", "S", "I", "M", "R"})
 ROLE_MARKER: Final = '"role":'
-BOOL_TOKENS: Final[frozenset[str]] = frozenset({"Y", "N"})
 ASSESSMENT_PROMPT_LEGEND: Final = "Answer with a single letter: Y for yes, N for no, U for uncertain."
-ROLE_PROMPT_LEGEND: Final = "Set role to a single letter chosen mnemonically from the role name: P=Provider, D=Deployer, S=diStributor, I=Importer, M=Product Manufacturer, R=Authorised Representative."
-EXCLUSIONS_PROMPT_LEGEND: Final = "For each exclusion field, set Y if the exclusion applies to your system, N otherwise."
+ROLE_PROMPT_LEGEND: Final = "Set role to a single letter chosen mnemonically from the role name: P=Provider, D=Deployer, S=diStributor, I=Importer, M=Product Manufacturer, R=Authorised Representative. Determine the role purely from the user's relationship to the AI system. Do not discuss scope, applicability, exclusions, or whether the Regulation's obligations apply — those are evaluated by separate criteria and must not appear in the reasoning here."
 RESOURCE_EXHAUSTED_MARKER: Final = "[RESOURCE_EXHAUSTED]"
 CRITERION_MAX_CONCURRENCY: Final = 5
 GEMINI_MAX_RETRIES_429: Final = 5
@@ -75,25 +73,15 @@ class AmbiguityType(StrEnum):
     UNDERSPECIFIED = "underspecified"
     SCOPE = "scope"
 
-ART2_EXCLUSION_TYPES: Final[tuple[ExclusionType, ...]] = (
-    ExclusionType.MILITARY,
-    ExclusionType.THIRD_COUNTRY_LE,
-    ExclusionType.RESEARCH,
-    ExclusionType.OPEN_SOURCE,
-    ExclusionType.PERSONAL,
-)
-
-EXCLUSION_MARKERS: Final[dict[ExclusionType, str]] = {e: f'"{e.value}":' for e in ART2_EXCLUSION_TYPES}
-
-#TODO: Make them taken from KB later
-EXCLUSION_MESSAGES: Final[dict[ExclusionType, str]] = {
-    ExclusionType.MILITARY: "Excluded under Art. 2: military / defence / national-security use. Act obligations do not apply.",
-    ExclusionType.THIRD_COUNTRY_LE: "Excluded under Art. 2: third-country law-enforcement / judicial cooperation use. Act obligations do not apply.",
-    ExclusionType.RESEARCH: "Partial exclusion under Art. 2: scientific R&D. Act obligations apply once the system is placed on the market or put into service.",
-    ExclusionType.OPEN_SOURCE: "Partial exclusion under Art. 2: free/open-source licence. Act obligations apply once the system is placed on the market or put into service as part of a high-risk, prohibited, GPAI, or transparency-obliged system.",
-    ExclusionType.PERSONAL: "Partial exclusion under Art. 2: purely personal, non-professional deployment. Deployer obligations do not apply.",
-    ExclusionType.HIGH_RISK_EXCEPTION: "High-risk Art. 2 exception: the system would otherwise be excluded but is high-risk under Annex I §A. Only Article 112 applies — track Commission reviews and updates.",
+EXCLUSION_CRITERION_IDS: Final[dict[str, ExclusionType]] = {
+    "art2_excl_military": ExclusionType.MILITARY,
+    "art2_excl_third_country_le": ExclusionType.THIRD_COUNTRY_LE,
+    "art2_excl_research": ExclusionType.RESEARCH,
+    "art2_excl_open_source": ExclusionType.OPEN_SOURCE,
+    "art2_excl_personal": ExclusionType.PERSONAL,
 }
+
+OPEN_SOURCE_EXCLUSION_ID: Final = "art2_excl_open_source"
 
 NON_TIER_ARTICLE_PREFIXES: Final = ("Art. 51", "Art. 25", "Art. 6(1)(b)", "Art. 6(3)", "Art. 3", "Art. 2")
 ROLE_CHANGING_ARTICLE_PREFIXES: Final = ("Annex I", "Annex III", "Art. 6(1)(b)", "Art. 6(3)")
@@ -116,7 +104,7 @@ ART2_PROVIDER_SCOPE_IDS: Final[set[str]] = {
 IDENTIFICATION_CRITERION_IDS: Final[set[str]] = {
     "art3_entity_role",
     *ART2_SCOPE_CRITERION_IDS,
-    "art2_exclusions",
+    *EXCLUSION_CRITERION_IDS,
 }
 
 GATE_CRITERION_IDS: Final[set[str]] = {
@@ -151,7 +139,11 @@ VOICE: Write reasoning in second person, addressing the user directly.
 Use "you", "your system", "your role" -- never "the user", "their system",
 or "the described system". When quoting a prior clarification, quote only
 the user's answer text -- do not include the "Q:" or "A:" labels that
-structure the input.
+structure the input. Refer to Act provisions only by their legal
+designation (e.g., "Article 5(1)(h)", "Annex I §A, point 10"). Do not
+name the retrieval container in reasoning -- never write "the RELEVANT AI
+ACT TEXT", "the retrieved text", "as listed above", or similar references
+to the prompt's structure.
 
 CRITERION:
   id:           {criterion_id}
@@ -176,7 +168,11 @@ VOICE: Write reasoning in second person, addressing the user directly.
 Use "you", "your system", "your role" -- never "the user", "their system",
 or "the described system". When quoting a prior clarification, quote only
 the user's answer text -- do not include the "Q:" or "A:" labels that
-structure the input.
+structure the input. Refer to Act provisions only by their legal
+designation (e.g., "Article 5(1)(h)", "Annex I §A, point 10"). Do not
+name the retrieval container in reasoning -- never write "the RELEVANT AI
+ACT TEXT", "the retrieved text", "as listed above", or similar references
+to the prompt's structure.
 
 CRITERION:
   id:           {criterion_id}
@@ -252,8 +248,15 @@ Use "you", "your system", "your role" -- never "the user", "their system",
 or "the described system". Quote inline only from the DESCRIPTION or that
 criterion's RELEVANT AI ACT TEXT -- do not cite anything outside this
 context. Do not invent legal options or definitions that are not in the
-provided Act text. Each question must be self-contained: the user should
-be able to answer it without first reading the criterion's article.
+provided Act text. Do not include Article, Annex, paragraph, or point
+citations in the user-facing question -- no "as referred to in Article X",
+"under Annex Y", "pursuant to Article Z", or similar legal references. The
+user is a non-lawyer; rephrase what the criterion requires in plain words,
+using the retrieved Act text only as your source for accuracy. Never refer
+to the retrieval container itself ("the RELEVANT AI ACT TEXT", "the
+retrieved text", "as listed above"). Each question must be self-contained:
+the user should be able to answer it without first reading the criterion's
+article.
 
 If a criterion already has PRIOR CLARIFICATIONS, your new question must
 target a different gap than the prior exchanges; do not repeat what was

@@ -1,6 +1,5 @@
 from .constants import ALL_ROLES, AssessmentCriterion, Role
 
-#TODO: article_ref might need to be reformatted to fit the KB style
 CRITERIA: list[AssessmentCriterion] = [
     {
         # E1
@@ -273,9 +272,37 @@ CRITERIA: list[AssessmentCriterion] = [
     },
     {
         # R2
-        "id": "art2_exclusions",
-        "article_ref": "Art. 2",
-        "question": "Does your AI system fall under any of the exclusions in Article 2?",
+        "id": "art2_excl_military",
+        "article_ref": "Art. 2(3)",
+        "question": "Is the AI system used exclusively for military, defence or national security purposes (regardless of whether the entity carrying out those activities is public or private)?",
+        "applies_to_roles": ALL_ROLES,
+    },
+    {
+        # R2
+        "id": "art2_excl_third_country_le",
+        "article_ref": "Art. 2(4)",
+        "question": "Is the AI system used by public authorities of a third country, or by international organisations, for law-enforcement or judicial cooperation purposes pursuant to an international agreement with the Union or a Member State?",
+        "applies_to_roles": ALL_ROLES,
+    },
+    {
+        # R2
+        "id": "art2_excl_research",
+        "article_ref": "Art. 2(6)",
+        "question": "Is the AI system or model specifically developed and put into service for the sole purpose of scientific research and development?",
+        "applies_to_roles": ALL_ROLES,
+    },
+    {
+        # R2
+        "id": "art2_excl_open_source",
+        "article_ref": "Art. 2(12)",
+        "question": "Is the AI system released under a free and open-source licence, and not placed on the market or put into service as a high-risk system, a prohibited practice, a GPAI model, or a system otherwise subject to transparency obligations?",
+        "applies_to_roles": ALL_ROLES,
+    },
+    {
+        # R2
+        "id": "art2_excl_personal",
+        "article_ref": "Art. 2(10)",
+        "question": "Is the AI system used by a natural person in the course of a purely personal, non-professional activity?",
         "applies_to_roles": ALL_ROLES,
     },
     {

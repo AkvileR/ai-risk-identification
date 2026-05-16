@@ -12,12 +12,8 @@ from pydantic import BaseModel, ValidationError
 from .constants import (
     ANSWER_TOKENS,
     APPLIES_MARKER,
-    ART2_EXCLUSION_TYPES,
     ASSESSMENT_TEMPERATURE,
     AmbiguityType,
-    BOOL_TOKENS,
-    EXCLUSION_MARKERS,
-    ExclusionType,
     GEMINI_MAX_RETRIES_429,
     GEMINI_MODEL,
     GEMINI_RETRY_BACKOFF_FACTOR,
@@ -33,14 +29,6 @@ from .constants import (
 
 class EntityTypeResponse(BaseModel):
     role: Literal["P", "D", "S", "I", "M", "R"]
-    reasoning: str
-
-class ExclusionsResponse(BaseModel):
-    military: Literal["Y", "N"]
-    third_country_le: Literal["Y", "N"]
-    research: Literal["Y", "N"]
-    open_source: Literal["Y", "N"]
-    personal: Literal["Y", "N"]
     reasoning: str
 
 class CriterionAssessmentResponse(BaseModel):
@@ -253,25 +241,3 @@ def query_gemini_for_clarification_generation(prompt: str) -> BatchClarification
             continue
     raise RuntimeError("query_gemini_for_clarification_generation exhausted retries")
 
-@_retry_on_resource_exhausted
-def query_gemini_for_exclusions(
-    prompt: str,
-) -> tuple[ExclusionsResponse, Optional[dict[ExclusionType, dict[str, float]]]]:
-    parsed: Optional[ExclusionsResponse] = None
-    for attempt in range(LOGPROB_RETRY_LIMIT + 1):
-        response = _generate_with_logprobs(prompt, ExclusionsResponse)
-        try:
-            parsed = ExclusionsResponse.model_validate_json(response.text)
-        except ValidationError:
-            if attempt == LOGPROB_RETRY_LIMIT:
-                raise
-            continue
-        softmax_per_exclusion: dict[ExclusionType, dict[str, float]] = {}
-        for e in ART2_EXCLUSION_TYPES:
-            s = _extract_field_softmax(response, EXCLUSION_MARKERS[e], BOOL_TOKENS)
-            if s is None:
-                break
-            softmax_per_exclusion[e] = s
-        else:
-            return parsed, softmax_per_exclusion
-    return parsed, None

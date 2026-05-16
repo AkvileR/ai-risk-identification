@@ -45,7 +45,7 @@ export function groupByArticle(
 export function isExtractionFinding(finding: CriterionFinding): boolean {
   const value = finding.extracted_value;
   if (value === null || typeof value !== "object") return false;
-  return "role" in value || "exclusions" in value;
+  return "role" in value;
 }
 
 export function extractionStatusLabel(finding: CriterionFinding): string {
@@ -53,11 +53,6 @@ export function extractionStatusLabel(finding: CriterionFinding): string {
   if (value === null || typeof value !== "object") return "";
   if ("role" in value && typeof value.role === "string") {
     return formatRole(value.role);
-  }
-  if ("exclusions" in value && Array.isArray(value.exclusions)) {
-    const n = value.exclusions.length;
-    if (n === 0) return "No exclusions";
-    return n === 1 ? "1 exclusion" : `${n} exclusions`;
   }
   return "";
 }

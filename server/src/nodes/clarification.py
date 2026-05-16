@@ -17,7 +17,7 @@ from src.constants import (
     RAG_ENABLED,
 )
 from src.criteria import CRITERIA_BY_ID
-from src.nodes.identify_system import _sibling_context_for
+from src.nodes.identify_planner import _sibling_context_for
 from src.rag import format_chunks_block, retrieve_for_criterion
 from src.state import CriterionFinding, State
 

@@ -4,11 +4,11 @@ export const MAX_CLARIFICATION_CHARS = 200;
 export const MAX_INPUT_CHARS = 2000;
 
 export const PLACEHOLDER =
-  "e.g.: A CV-screening tool for hiring deployed in Germany.";
+  "e.g.: We deploy biometric verification at office entrances to check employee identity.";
 
 export const PHASE_LABELS: Record<string, string> = {
   defining_system: "Identifying your system",
-  asking_clarification: "Waiting for your clarification",
+  asking_clarification: "Clarifying",
   evaluating_criteria: "Evaluating EU AI Act criteria",
   synthesis: "Deriving the risk tier and obligations",
 };
@@ -32,7 +32,11 @@ export const SYSTEM_SCOPE_CRITERION_IDS: string[] = [
   "art2_deployer_established_eu",
   "art2_importer_third_country_trademark",
   "art2_output_used_in_eu",
-  "art2_exclusions",
+  "art2_excl_military",
+  "art2_excl_third_country_le",
+  "art2_excl_research",
+  "art2_excl_open_source",
+  "art2_excl_personal",
 ];
 
 export const ARTICLE_ORDER: string[] = [

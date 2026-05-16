@@ -1,4 +1,4 @@
-from src.constants import ActivePhase, EXCLUSION_MESSAGES, IDENTIFICATION_CRITERION_IDS, RiskTier, Role, format_role
+from src.constants import ActivePhase, IDENTIFICATION_CRITERION_IDS, RiskTier, Role, format_role
 from src.state import State, Verdict
 from src.synthesis_utils import _passes_gates, derive_gpai_systemic, derive_role, derive_tier
 
@@ -83,10 +83,6 @@ def synthesis(state: State):
             f"based on the applicable findings you would be considered a \"{format_role(derived_role)}\""
         )
         tier_reasoning = f"{role_note}\n\n{tier_reasoning}"
-
-    exclusion_lines = [EXCLUSION_MESSAGES[e] for e in sd["exclusions"]]
-    if exclusion_lines:
-        tier_reasoning = "\n".join(exclusion_lines) + f"\n\n{tier_reasoning}"
 
     article_citations = sorted({f["article_ref"] for f in applicable})
 

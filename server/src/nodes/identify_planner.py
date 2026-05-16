@@ -4,22 +4,20 @@ from langgraph.types import Command, Send
 
 from src.ai_client import (
     query_gemini_for_assessment,
-    query_gemini_for_exclusions,
     query_gemini_for_role,
 )
 from src.constants import (
-    ART2_EXCLUSION_TYPES,
     ART2_SCOPE_CRITERION_IDS,
     ASSESSMENT_CONFIDENCE_THRESHOLD,
     ASSESSMENT_PROMPT_LEGEND,
     ActivePhase,
     AssessmentCriterion,
-    EXCLUSIONS_PROMPT_LEGEND,
-    ExclusionType,
+    EXCLUSION_CRITERION_IDS,
     GPAI_FLAG_CRITERION_ID,
     IDENTIFY_SYSTEM_PROMPT_TEMPLATE,
     LETTER_TO_ROLE,
     LETTER_TO_VERDICT,
+    OPEN_SOURCE_EXCLUSION_ID,
     RAG_ENABLED,
     ROLE_PROMPT_LEGEND,
     Role,
@@ -33,7 +31,7 @@ def _context_block(cid: str, sibling_findings: dict[str, CriterionFinding]) -> s
     role_value = ((sibling_findings.get("art3_entity_role") or {}).get("extracted_value") or {}).get("role")
     if cid != "art3_entity_role" and role_value:
         parts.append(f"role (from E1): {role_value}")
-    if cid == "art2_exclusions":
+    if cid == OPEN_SOURCE_EXCLUSION_ID:
         gpai_finding = sibling_findings.get(GPAI_FLAG_CRITERION_ID) or {}
         if gpai_finding.get("applies") == "yes":
             parts.append("is GPAI (from S): True")
@@ -44,7 +42,7 @@ def _sibling_context_for(cid: str, findings: dict[str, CriterionFinding]) -> dic
     e1 = findings.get("art3_entity_role")
     if e1 is not None and cid != "art3_entity_role":
         siblings["art3_entity_role"] = e1
-    if cid == "art2_exclusions":
+    if cid == OPEN_SOURCE_EXCLUSION_ID:
         gpai = findings.get(GPAI_FLAG_CRITERION_ID)
         if gpai is not None:
             siblings[GPAI_FLAG_CRITERION_ID] = gpai
@@ -82,19 +80,6 @@ def _evaluate_role(prompt: str) -> tuple[str, float, str, dict]:
     applies = "yes" if confidence >= ASSESSMENT_CONFIDENCE_THRESHOLD else "uncertain"
     return applies, confidence, parsed.reasoning, {"role": role}
 
-def _evaluate_exclusions(prompt: str) -> tuple[str, float, str, dict]:
-    parsed, softmax_per = query_gemini_for_exclusions(prompt)
-    exclusions: list[ExclusionType] = [
-        e for e in ART2_EXCLUSION_TYPES if getattr(parsed, e.value) == "Y"
-    ]
-    if softmax_per is None:
-        return "uncertain", 0.0, parsed.reasoning, {"exclusions": exclusions}
-    confidence = min(
-        softmax_per[e][getattr(parsed, e.value)] for e in ART2_EXCLUSION_TYPES
-    )
-    applies = "yes" if confidence >= ASSESSMENT_CONFIDENCE_THRESHOLD else "uncertain"
-    return applies, confidence, parsed.reasoning, {"exclusions": exclusions}
-
 def _evaluate_s1(prompt: str) -> tuple[str, float, str, dict]:
     parsed, softmax = query_gemini_for_assessment(prompt)
     if softmax is None:
@@ -122,8 +107,6 @@ def _evaluate(
 
     if cid == "art3_entity_role":
         schema_name, legend, evaluator = "EntityTypeResponse", ROLE_PROMPT_LEGEND, _evaluate_role
-    elif cid == "art2_exclusions":
-        schema_name, legend, evaluator = "ExclusionsResponse", EXCLUSIONS_PROMPT_LEGEND, _evaluate_exclusions
     else:
         schema_name, legend, evaluator = "CriterionAssessmentResponse", ASSESSMENT_PROMPT_LEGEND, _evaluate_s1
 
@@ -167,8 +150,9 @@ def _next_wave_pending(
         s1_pending = [cid for cid in _s1_ids_for_role(role) if cid not in findings]
         if s1_pending:
             return role, s1_pending
-    if "art2_exclusions" not in findings:
-        return role, ["art2_exclusions"]
+    excl_pending = [cid for cid in EXCLUSION_CRITERION_IDS if cid not in findings]
+    if excl_pending:
+        return role, excl_pending
     return role, []
 
 def _compose_system_description(
@@ -177,7 +161,6 @@ def _compose_system_description(
 ) -> SystemDescription:
     e1 = (findings.get("art3_entity_role") or {}).get("extracted_value") or {}
     role: Role = e1.get("role") or Role.DEPLOYER
-    r2 = (findings.get("art2_exclusions") or {}).get("extracted_value") or {}
 
     gpai_finding = findings.get(GPAI_FLAG_CRITERION_ID)
     is_gpai = gpai_finding is not None and gpai_finding.get("applies") == "yes"
@@ -191,12 +174,18 @@ def _compose_system_description(
     else:
         in_eu_scope = True
 
+    exclusions = [
+        excl_type
+        for cid, excl_type in EXCLUSION_CRITERION_IDS.items()
+        if (findings.get(cid) or {}).get("applies") == "yes"
+    ]
+
     return {
         "raw_input": user_input,
         "role": role,
         "is_gpai": is_gpai,
         "in_eu_scope": in_eu_scope,
-        "exclusions": list(r2.get("exclusions") or []),
+        "exclusions": exclusions,
     }
 
 def _build_wave_sends(
