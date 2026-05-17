@@ -1,5 +1,4 @@
 # --- Workspace / IDEs ---
-# Ignore the workspace file because it contains local paths
 *.code-workspace
 .vscode/
 .idea/
@@ -18,7 +17,6 @@
 **/.langgraph_api/
 
 # --- Node / Frontend (Client) ---
-# dependencies - covers root and client folder
 **/node_modules/
 **/.pnp
 **/.pnp.js
@@ -39,6 +37,5 @@ yarn-error.log*
 Thumbs.db
 
 # --- Environment Secrets ---
-# We ignore all local env files to keep your Gemini keys safe
 .env*
 !.env.example
