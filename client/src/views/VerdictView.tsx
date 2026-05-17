@@ -80,7 +80,10 @@ export function VerdictView({ verdict, findings, onReset }: Props) {
     <div className="verdict-view">
       <header className="verdict-header">
         <TierBadge tier={verdict.risk_tier} />
-        <h1>This system is classified as {verdict.risk_tier} Risk.</h1>
+        <h1>
+          This system is classified as {verdict.risk_tier}
+          {verdict.risk_tier === "Out of Scope" ? "" : " Risk"}.
+        </h1>
         <button className="verdict-reset" onClick={onReset}>
           New assessment
         </button>

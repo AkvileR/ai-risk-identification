@@ -49,13 +49,22 @@ def _evaluate_question(
     prompt = _build_prompt(question_id, question_text, article_ref, sd, chunks, prior_finding)
     parsed, softmax = query_gemini_for_assessment(prompt)
     if softmax is None:
-        applies = "uncertain"
         confidence_score = 0.0
+        applies = "uncertain"
     else:
-        applies = LETTER_TO_VERDICT[parsed.applies]
-        confidence_score = softmax[parsed.applies]
-        if confidence_score < ASSESSMENT_CONFIDENCE_THRESHOLD:
-            applies = "uncertain"
+        if parsed.applies == "U":
+            y_p = softmax.get("Y", 0.0)
+            n_p = softmax.get("N", 0.0)
+            chosen_letter = "Y" if y_p >= n_p else "N"
+            confidence_score = max(y_p, n_p)
+        else:
+            chosen_letter = parsed.applies
+            confidence_score = softmax[chosen_letter]
+        applies = (
+            LETTER_TO_VERDICT[chosen_letter]
+            if confidence_score >= ASSESSMENT_CONFIDENCE_THRESHOLD
+            else "uncertain"
+        )
     prior_rounds = (prior_finding or {}).get("clarification_round_count", 0)
     prior_history = (prior_finding or {}).get("clarification_history") or []
     return {

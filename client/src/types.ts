@@ -24,7 +24,7 @@ export function formatExclusion(exclusion: ExclusionType | string): string {
   return EXCLUSION_LABELS[exclusion as ExclusionType] ?? exclusion;
 }
 
-export type RiskTier = "Critical" | "High" | "Limited" | "Low" | "Out of Scope";
+export type RiskTier = "Prohibited" | "High" | "Limited" | "Minimal" | "Out of Scope";
 
 export type Applies = "yes" | "no" | "uncertain";
 

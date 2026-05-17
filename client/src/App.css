@@ -651,7 +651,7 @@ body,
   color: white;
 }
 
-.tier-critical {
+.tier-prohibited {
   background: #dc2626;
 }
 
@@ -663,7 +663,7 @@ body,
   background: #d97706;
 }
 
-.tier-low {
+.tier-minimal {
   background: #16a34a;
 }
 

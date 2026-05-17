@@ -71,10 +71,10 @@ export const ARTICLE_ORDER: string[] = [
 ];
 
 export const TIER_CLASSNAME: Record<RiskTier, string> = {
-  Critical: "tier-badge tier-critical",
+  Prohibited: "tier-badge tier-prohibited",
   High: "tier-badge tier-high",
   Limited: "tier-badge tier-limited",
-  Low: "tier-badge tier-low",
+  Minimal: "tier-badge tier-minimal",
   "Out of Scope": "tier-badge tier-out-of-scope",
 };
 

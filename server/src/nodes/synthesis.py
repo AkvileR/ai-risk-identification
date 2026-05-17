@@ -1,4 +1,4 @@
-from src.constants import ActivePhase, IDENTIFICATION_CRITERION_IDS, RiskTier, Role, format_role
+from src.constants import ActivePhase, ExclusionType, IDENTIFICATION_CRITERION_IDS, RiskTier, Role, format_role
 from src.state import State, Verdict
 from src.synthesis_utils import _passes_gates, derive_gpai_systemic, derive_role, derive_tier
 
@@ -43,6 +43,20 @@ def synthesis(state: State):
         tier_reasoning = (
             "As an Authorised Representative, risk-classification criteria do "
             "not apply. See Art. 3 for the role determination."
+        )
+    elif ExclusionType.MILITARY in sd["exclusions"]:
+        tier = RiskTier.OUT_OF_SCOPE
+        tier_reasoning = (
+            "Your system falls under the Art. 2(3) exclusion for military, "
+            "defence, or national-security use, so the AI Act does not apply."
+        )
+    elif ExclusionType.THIRD_COUNTRY_LE in sd["exclusions"]:
+        tier = RiskTier.OUT_OF_SCOPE
+        tier_reasoning = (
+            "Your system falls under the Art. 2(4) exclusion for third-country "
+            "public authorities or international organisations acting under an "
+            "international LE / judicial-cooperation agreement, so the AI Act "
+            "does not apply."
         )
     elif detected_role == Role.PRODUCT_MANUFACTURER and not e3_fired:
         tier = RiskTier.OUT_OF_SCOPE

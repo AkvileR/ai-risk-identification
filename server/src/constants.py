@@ -14,7 +14,7 @@ LOGPROB_TOP_K: Final = 5
 MAX_VALUE_TOKEN_WINDOW: Final = 5
 ANSWER_TOKENS: Final[frozenset[str]] = frozenset({"Y", "N", "U"})
 APPLIES_MARKER: Final = '"applies":'
-LETTER_TO_VERDICT: Final[dict[str, str]] = {"Y": "yes", "N": "no", "U": "uncertain"}
+LETTER_TO_VERDICT: Final[dict[str, str]] = {"Y": "yes", "N": "no"}
 ROLE_TOKENS: Final[frozenset[str]] = frozenset({"P", "D", "S", "I", "M", "R"})
 ROLE_MARKER: Final = '"role":'
 ASSESSMENT_PROMPT_LEGEND: Final = "Answer with a single letter: Y for yes, N for no, U for uncertain."
@@ -49,10 +49,10 @@ LETTER_TO_ROLE: Final[dict[str, Role]] = {
 
 class RiskTier(StrEnum):
     OUT_OF_SCOPE = "Out of Scope"
-    CRITICAL = "Critical"
+    PROHIBITED = "Prohibited"
     HIGH = "High"
     LIMITED = "Limited"
-    LOW = "Low"
+    MINIMAL = "Minimal"
 
 class ActivePhase(StrEnum):
     DEFINING_SYSTEM = "defining_system"
@@ -80,6 +80,11 @@ EXCLUSION_CRITERION_IDS: Final[dict[str, ExclusionType]] = {
     "art2_excl_open_source": ExclusionType.OPEN_SOURCE,
     "art2_excl_personal": ExclusionType.PERSONAL,
 }
+
+OUT_OF_SCOPE_EXCLUSIONS: Final[frozenset[ExclusionType]] = frozenset({
+    ExclusionType.MILITARY,
+    ExclusionType.THIRD_COUNTRY_LE,
+})
 
 OPEN_SOURCE_EXCLUSION_ID: Final = "art2_excl_open_source"
 

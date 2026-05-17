@@ -83,13 +83,22 @@ def _evaluate_role(prompt: str) -> tuple[str, float, str, dict]:
 def _evaluate_s1(prompt: str) -> tuple[str, float, str, dict]:
     parsed, softmax = query_gemini_for_assessment(prompt)
     if softmax is None:
-        applies = "uncertain"
         confidence = 0.0
+        applies = "uncertain"
     else:
-        applies = LETTER_TO_VERDICT[parsed.applies]
-        confidence = softmax[parsed.applies]
-        if confidence < ASSESSMENT_CONFIDENCE_THRESHOLD:
-            applies = "uncertain"
+        if parsed.applies == "U":
+            y_p = softmax.get("Y", 0.0)
+            n_p = softmax.get("N", 0.0)
+            chosen_letter = "Y" if y_p >= n_p else "N"
+            confidence = max(y_p, n_p)
+        else:
+            chosen_letter = parsed.applies
+            confidence = softmax[chosen_letter]
+        applies = (
+            LETTER_TO_VERDICT[chosen_letter]
+            if confidence >= ASSESSMENT_CONFIDENCE_THRESHOLD
+            else "uncertain"
+        )
     return applies, confidence, parsed.reasoning, {"applies": applies}
 
 def _evaluate(

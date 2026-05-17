@@ -7,6 +7,7 @@ from src.constants import (
     GATE_CRITERION_IDS,
     GPAI_FLAG_CRITERION_ID,
     IDENTIFICATION_CRITERION_IDS,
+    OUT_OF_SCOPE_EXCLUSIONS,
     ActivePhase,
     AssessmentCriterion,
     Role,
@@ -160,7 +161,11 @@ def assessment_planner(state: State):
     sd = state["system_description"]
     role = sd["role"]
 
-    if not sd["in_eu_scope"] or role == Role.AUTHORISED_REPRESENTATIVE:
+    if (
+        not sd["in_eu_scope"]
+        or role == Role.AUTHORISED_REPRESENTATIVE
+        or any(e in OUT_OF_SCOPE_EXCLUSIONS for e in sd["exclusions"])
+    ):
         return Command(
             update={"pending_assessments": set(), "active_phase": ActivePhase.EVALUATING_CRITERIA},
             goto="synthesis",

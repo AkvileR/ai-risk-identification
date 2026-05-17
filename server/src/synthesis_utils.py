@@ -7,10 +7,10 @@ from .constants import (
 from .state import CriterionFinding
 
 _TIER_ORDER: list[RiskTier] = [
-    RiskTier.LOW,
+    RiskTier.MINIMAL,
     RiskTier.LIMITED,
     RiskTier.HIGH,
-    RiskTier.CRITICAL,
+    RiskTier.PROHIBITED,
 ]
 
 def _is_non_tier(article_ref: str) -> bool:
@@ -50,11 +50,11 @@ def article_to_tier(article_ref: str) -> RiskTier:
     if article_ref.startswith("Art. 51"):
         return RiskTier.HIGH
     if article_ref.startswith("Art. 25"):
-        return RiskTier.LOW
+        return RiskTier.MINIMAL
     if article_ref.startswith("Art. 6(1)(b)"):
-        return RiskTier.LOW
+        return RiskTier.MINIMAL
     if article_ref.startswith("Art. 5("):
-        return RiskTier.CRITICAL
+        return RiskTier.PROHIBITED
     if article_ref.startswith(("Annex I", "Annex III")):
         return RiskTier.HIGH
     raise ValueError(f"No tier mapping for article: {article_ref}")
@@ -76,7 +76,7 @@ def derive_tier(
         if f["article_ref"].startswith("Annex III") and not risk_gate:
             continue
         triggered.append(f)
-    tier = RiskTier.LOW
+    tier = RiskTier.MINIMAL
     for finding in triggered:
         finding_tier = article_to_tier(finding["article_ref"])
         if _TIER_ORDER.index(finding_tier) > _TIER_ORDER.index(tier):
