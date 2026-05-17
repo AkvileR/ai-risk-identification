@@ -35,7 +35,7 @@ def synthesis(state: State):
         tier = RiskTier.OUT_OF_SCOPE
         tier_reasoning = (
             "Your system is out of scope of the EU AI Act. None of the Art. 2 "
-            "scope criteria were met — see the non-applicable findings section for the "
+            "scope criteria were met — see the scope or non-applicable findings section for the "
             "per-criterion reasoning."
         )
     elif detected_role == Role.AUTHORISED_REPRESENTATIVE:

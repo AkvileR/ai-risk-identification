@@ -10,3 +10,13 @@ function resolveApiUrl(): string {
 }
 
 export const API_URL = resolveApiUrl();
+
+export function buildAuthHeaders(
+  passcode: string,
+  email: string,
+): Record<string, string> {
+  return {
+    "x-app-passcode": passcode,
+    "x-user-email": email,
+  };
+}

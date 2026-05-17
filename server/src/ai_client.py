@@ -7,6 +7,7 @@ from google import genai
 from google.genai import errors as genai_errors
 from google.genai.types import HttpOptions
 from dotenv import load_dotenv
+from langsmith import traceable
 from pydantic import BaseModel, ValidationError
 
 from .constants import (
@@ -157,6 +158,7 @@ def _generate_with_logprobs(prompt: str, schema: type[BaseModel]):
         _maybe_raise_resource_exhausted(e)
         raise
 
+@traceable(run_type="llm", name="gemini_assessment")
 @_retry_on_resource_exhausted
 def query_gemini_for_assessment(
     prompt: str,
@@ -175,6 +177,7 @@ def query_gemini_for_assessment(
             return parsed, softmax
     return parsed, None
 
+@traceable(run_type="llm", name="gemini_role")
 @_retry_on_resource_exhausted
 def query_gemini_for_role(
     prompt: str,
@@ -193,6 +196,7 @@ def query_gemini_for_role(
             return parsed, softmax
     return parsed, None
 
+@traceable(run_type="llm", name="gemini_ambiguity_batch")
 @_retry_on_resource_exhausted
 def query_gemini_for_ambiguity_batch(prompt: str) -> BatchAmbiguityResponse:
     for attempt in range(LOGPROB_RETRY_LIMIT + 1):
@@ -217,6 +221,7 @@ def query_gemini_for_ambiguity_batch(prompt: str) -> BatchAmbiguityResponse:
             continue
     raise RuntimeError("query_gemini_for_ambiguity_batch exhausted retries")
 
+@traceable(run_type="llm", name="gemini_clarification")
 @_retry_on_resource_exhausted
 def query_gemini_for_clarification_generation(prompt: str) -> BatchClarificationGeneration:
     for attempt in range(LOGPROB_RETRY_LIMIT + 1):

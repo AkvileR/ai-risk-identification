@@ -1,0 +1,11 @@
+langgraph
+langgraph-api==0.8.5
+langgraph-cli==0.4.24
+langgraph-checkpoint
+langgraph-sdk
+langchain-core
+google-genai==1.74.0
+google-auth
+pydantic
+numpy
+python-dotenv

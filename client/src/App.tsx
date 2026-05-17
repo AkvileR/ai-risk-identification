@@ -1,20 +1,26 @@
 import React, { useEffect, useState } from "react";
 import { useStream } from "@langchain/langgraph-sdk/react";
 import "./App.css";
-import { API_URL, ASSISTANT_ID } from "./api/graphClient";
+import { API_URL, ASSISTANT_ID, buildAuthHeaders } from "./api/graphClient";
 import { AppState, ClarificationPayload } from "./types";
 import { InputView, InputPhase } from "./views/InputView";
 import { ClarificationModal } from "./views/ClarificationModal";
 import { VerdictView } from "./views/VerdictView";
 import { RunningView } from "./views/RunningView";
+import { AccessCredentials } from "./views/AccessGate";
 
-function App() {
+interface AppProps {
+  credentials: AccessCredentials;
+}
+
+function App({ credentials }: AppProps) {
   const stream = useStream<
     AppState,
     { InterruptType: ClarificationPayload }
   >({
     apiUrl: API_URL,
     assistantId: ASSISTANT_ID,
+    defaultHeaders: buildAuthHeaders(credentials.passcode, credentials.email),
   });
 
   const [userStopped, setUserStopped] = useState(false);
@@ -58,14 +64,19 @@ function App() {
         ? "stopped"
         : "idle";
 
+  const runMetadata = { user_email: credentials.email };
+
   const handleSubmit = (userInput: string) => {
     setUserStopped(false);
     setSubmittedText(userInput);
-    stream.submit({ user_input: userInput });
+    stream.submit({ user_input: userInput }, { metadata: runMetadata });
   };
 
   const handleClarification = (answers: Record<string, string>) => {
-    stream.submit(undefined, { command: { resume: answers } });
+    stream.submit(undefined, {
+      command: { resume: answers },
+      metadata: runMetadata,
+    });
   };
 
   const handleStop = async () => {
