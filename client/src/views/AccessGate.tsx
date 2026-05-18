@@ -64,7 +64,7 @@ export function AccessGate({ onUnlock }: Props) {
 
   return (
     <form className="input-view" onSubmit={handleSubmit}>
-      <h1>EU AI Act Risk Identification</h1>
+      <h1>EU AI Act Risk Identification <span className="prototype-suffix">Prototype</span></h1>
       <p className="input-hint">
         This tool is access-restricted. Enter your email and passcode to continue.
       </p>

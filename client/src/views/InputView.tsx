@@ -31,9 +31,15 @@ export function InputView({
 
     return (
       <form className="input-view" onSubmit={handleSubmit}>
-        <h1>EU AI Act Risk Identification</h1>
+        <h1>EU AI Act Risk Identification <span className="prototype-suffix">Prototype</span></h1>
         <p className="input-hint">
           Describe your AI system. The assessor will evaluate your input against a maximum of 51 criteria to determine your risk group.
+        </p>
+        <p className="input-hint">
+          The assessment will take a few minutes to complete and you may be asked to clarify missing facts.
+        </p>
+        <p className="input-hint">
+          Since this is an early prototype, if you run into any issues please reload the page and restart the assessment.
         </p>
         <textarea
           className="input-textarea"
@@ -61,7 +67,7 @@ export function InputView({
 
   return (
     <div className="input-view input-view-collapsed">
-      <h1>EU AI Act Risk Identification</h1>
+      <h1>EU AI Act Risk Identification <span className="prototype-suffix">Prototype</span></h1>
       <div className="input-readonly">
         {submittedText || "(no description)"}
       </div>
