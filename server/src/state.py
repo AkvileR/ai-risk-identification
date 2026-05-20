@@ -24,6 +24,12 @@ class CriterionFinding(TypedDict):
     clarification_round_count: int
     extracted_value: Optional[dict]
 
+class RunSummary(TypedDict):
+    criteria_evaluated_total: int
+    clarification_rounds_total: int
+    unique_criteria_clarified: int
+    clarified_criterion_ids: list[str]
+
 class Verdict(TypedDict):
     role: Role
     detected_role: Role
@@ -36,6 +42,7 @@ class Verdict(TypedDict):
     non_applicable_findings: list[CriterionFinding]
     uncertain_findings: list[CriterionFinding]
     article_citations: list[str]
+    run_summary: RunSummary
 
 def _last_phase(_old: ActivePhase, new: ActivePhase) -> ActivePhase:
     return new

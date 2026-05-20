@@ -55,6 +55,13 @@ export interface CriterionFinding {
   extracted_value: Record<string, unknown> | null;
 }
 
+export interface RunSummary {
+  criteria_evaluated_total: number;
+  clarification_rounds_total: number;
+  unique_criteria_clarified: number;
+  clarified_criterion_ids: string[];
+}
+
 export interface Verdict {
   role: Role;
   detected_role: Role;
@@ -67,6 +74,7 @@ export interface Verdict {
   non_applicable_findings: CriterionFinding[];
   uncertain_findings: CriterionFinding[];
   article_citations: string[];
+  run_summary: RunSummary;
 }
 
 export interface AppState extends Record<string, unknown> {

@@ -1,5 +1,5 @@
 from src.constants import ActivePhase, ExclusionType, IDENTIFICATION_CRITERION_IDS, RiskTier, Role, format_role
-from src.state import State, Verdict
+from src.state import RunSummary, State, Verdict
 from src.synthesis_utils import _passes_gates, derive_gpai_systemic, derive_role, derive_tier
 
 def synthesis(state: State):
@@ -102,6 +102,14 @@ def synthesis(state: State):
 
     is_gpai_systemic = sd["is_gpai"] and derive_gpai_systemic(findings)
 
+    clarified = [f for f in findings.values() if f["clarification_round_count"] > 0]
+    run_summary: RunSummary = {
+        "criteria_evaluated_total": len(findings),
+        "clarification_rounds_total": sum(f["clarification_round_count"] for f in findings.values()),
+        "unique_criteria_clarified": len(clarified),
+        "clarified_criterion_ids": sorted(f["criterion_id"] for f in clarified),
+    }
+
     verdict: Verdict = {
         "role": derived_role,
         "detected_role": detected_role,
@@ -114,5 +122,6 @@ def synthesis(state: State):
         "non_applicable_findings": non_applicable,
         "uncertain_findings": uncertain,
         "article_citations": article_citations,
+        "run_summary": run_summary,
     }
     return {"verdict": verdict, "active_phase": ActivePhase.SYNTHESIS}
