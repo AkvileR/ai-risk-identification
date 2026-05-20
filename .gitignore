@@ -28,6 +28,9 @@
 **/build/
 **/dist/
 
+# --- Experiments (thesis evaluation runs) ---
+server/experiments/
+
 # --- Logs & Misc ---
 **/*.log*
 npm-debug.log*

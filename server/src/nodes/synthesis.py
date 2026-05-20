@@ -104,6 +104,7 @@ def synthesis(state: State):
 
     clarified = [f for f in findings.values() if f["clarification_round_count"] > 0]
     run_summary: RunSummary = {
+        "risk_tier": tier,
         "criteria_evaluated_total": len(findings),
         "clarification_rounds_total": sum(f["clarification_round_count"] for f in findings.values()),
         "unique_criteria_clarified": len(clarified),

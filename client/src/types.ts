@@ -56,6 +56,7 @@ export interface CriterionFinding {
 }
 
 export interface RunSummary {
+  risk_tier: RiskTier;
   criteria_evaluated_total: number;
   clarification_rounds_total: number;
   unique_criteria_clarified: number;

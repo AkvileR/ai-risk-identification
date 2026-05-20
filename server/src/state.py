@@ -25,6 +25,7 @@ class CriterionFinding(TypedDict):
     extracted_value: Optional[dict]
 
 class RunSummary(TypedDict):
+    risk_tier: RiskTier
     criteria_evaluated_total: int
     clarification_rounds_total: int
     unique_criteria_clarified: int
